@@ -3,7 +3,7 @@ package org.acme;
 import io.quarkus.runtime.util.ExceptionUtil;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
-import org.jboss.resteasy.plugins.providers.multipart.InputPart;
+import org.jboss.resteasy.reactive.multipart.FileUpload;
 
 import javax.inject.Singleton;
 import javax.ws.rs.core.MultivaluedMap;
@@ -26,65 +26,84 @@ public class DocService
   @ConfigProperty(name = "document.path")
   String docPath;
 
-  /**
-   * Speichert Dateien aus Input Parts zu Kategorien.
-   *
-   * @param uploadRequest
-   * @param inputParts
-   * @return true if ok
-   */
-//  @Transactional
-  public boolean save(
-//          UploadRequests uploadRequests,
-          List<InputPart> inputParts) throws Exception
+  public void save(List<FileUpload> uploadFiles)
   {
-    if (inputParts != null)
+    if (uploadFiles != null && !uploadFiles.isEmpty())
     {
-      for (InputPart inputPart : inputParts)
+      for (FileUpload f :
+              uploadFiles)
       {
-        MultivaluedMap<String, String> header = inputPart.getHeaders();
-
-        String fileName = getFileName(header);
-        String contentType = getContentType(header);
-
-// Overwrite Filename from Request Body
-//        UploadRequest ur = null;
-//        if (uploadRequests != null)
-//        {
-//          ur = uploadRequests.getUploadRequestForOriginalName(fileName);
-//        }
-//        if (ur != null && ur.getNewName() != null && !ur.getNewName().isEmpty())
-//        {
-//          fileName = ur.getNewName();
-//        }
-
-        // convert the uploaded file to inputstream
-        try (InputStream inputStream = inputPart.getBody(InputStream.class, null))
+        String filePath = docPath + fileNameDateFormat.format(new Date()) + "_" + f.fileName().replaceAll("[^a-zA-Z0-9\\._]+", "_");
+        try
         {
-
-          // constructs upload file path
-          String filePath = docPath + fileNameDateFormat.format(new Date()) + "_" + fileName.replaceAll("[^a-zA-Z0-9\\._]+", "_");
-
-          Long fileSize = writeFile(inputStream, new File(filePath));
-
-          // Persist to DB
-//          Dokumente ad = new Dokumente();
-//          ad.setContenttype(contentType);
-//          ad.setSizebyte(fileSize);
-//          ad.setDateiname(fileName);
-//          ad.setSystempath(filePath);
-//          ad.setLastchangeuser(jwt.getSubject());
-//          ad.setLastchangedate(new Date());
-//          save(ad);
-//          updateEtag(ad);
-        } catch (Exception e)
+          Files.copy(f.filePath(), new File(filePath).toPath(), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e)
         {
           LOG.error(ExceptionUtil.rootCauseFirstStackTrace(e));
         }
       }
     }
-    return true;
   }
+
+//  /**
+//   * Speichert Dateien aus Input Parts zu Kategorien.
+//   *
+//   * @param uploadRequest
+//   * @param inputParts
+//   * @return true if ok
+//   */
+////  @Transactional
+//  public boolean save(
+////          UploadRequests uploadRequests,
+//          List<InputPart> inputParts) throws Exception
+//  {
+//    if (inputParts != null)
+//    {
+//      for (InputPart inputPart : inputParts)
+//      {
+//        MultivaluedMap<String, String> header = inputPart.getHeaders();
+//
+//        String fileName = getFileName(header);
+//        String contentType = getContentType(header);
+//
+//// Overwrite Filename from Request Body
+////        UploadRequest ur = null;
+////        if (uploadRequests != null)
+////        {
+////          ur = uploadRequests.getUploadRequestForOriginalName(fileName);
+////        }
+////        if (ur != null && ur.getNewName() != null && !ur.getNewName().isEmpty())
+////        {
+////          fileName = ur.getNewName();
+////        }
+//
+//        // convert the uploaded file to inputstream
+//        try (InputStream inputStream = inputPart.getBody(InputStream.class, null))
+//        {
+//
+//          // constructs upload file path
+//          String filePath = docPath + fileNameDateFormat.format(new Date()) + "_" + fileName.replaceAll("[^a-zA-Z0-9\\._]+", "_");
+//
+//          Long fileSize = writeFile(inputStream, new File(filePath));
+//
+//          // Persist to DB
+////          Dokumente ad = new Dokumente();
+////          ad.setContenttype(contentType);
+////          ad.setSizebyte(fileSize);
+////          ad.setDateiname(fileName);
+////          ad.setSystempath(filePath);
+////          ad.setLastchangeuser(jwt.getSubject());
+////          ad.setLastchangedate(new Date());
+////          save(ad);
+////          updateEtag(ad);
+//        } catch (Exception e)
+//        {
+//          LOG.error(ExceptionUtil.rootCauseFirstStackTrace(e));
+//        }
+//      }
+//    }
+//    return true;
+//  }
 
   /**
    * header sample { Content-Type=[image/png], Content-Disposition=[form-data;
